@@ -1,0 +1,5 @@
+# compiled / optimized files
+*.py[cod]
+
+# OS X
+.DS_Store
