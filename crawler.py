@@ -78,6 +78,9 @@ class UserObject(DataObject):
         self.id = -1
         self.username = None
 
+    def __repr__(self):
+        return '%s (%r)' % (self.username, self.id)
+
 
 class QuestionObject(DataObject):
 
@@ -105,7 +108,16 @@ class AnswerObject(DataObject):
         self.upvotecount = 0
         self.accepted = False
         self.comments = []
-        self.time = None
+        self.answeredtime = None
+
+
+class CommentObject(DataObject):
+
+    def __init__(self):
+        self.id = -1
+        self.content = None
+        self.user = None
+        self.commenttime = None
 
 
 class StackExchangeHandler(object):
@@ -115,7 +127,8 @@ class StackExchangeHandler(object):
         self.url = url
         self.depth = depth
         if self.depth == 1:
-            self.add_question()
+            qid = self.add_question()
+            self.add_answer(qid)
 
     def add_question(self):
         question_tag = self.soup.select('#question')[0]
@@ -149,16 +162,48 @@ class StackExchangeHandler(object):
         tags = [
             tag.string for tag in post_tag.find_next_sibling().find_all('a')]
         question = QuestionObject.create(
-            id=qid, title=title, content=content,
+            id=int(qid), title=title, content=content,
             tags=tags, upvotecount=int(upvotecount),
             favoritecount=int(favoritecount), author=author,
             viewcount=viewcount, askedtime=askedtime,
             activitytime=activitytime)
-        logger.info('Added a question:' + str(question.title))
-        return qid
+        logger.info('Added a question: %s' % str(question.title))
+        return int(qid)
 
     def add_answer(self, qid):
+        answers_tag = self.soup.select('#answers')[0].select('div.answer')
+        for answer_tag in answers_tag:
+            aid = answer_tag.get('data-answerid')
+            post_tag = answer_tag.select('div.post-text')[0]
+            content = post_tag.contents
+            upvotecount = answer_tag.select('span.vote-count-post')[0].string
+            accepted_tag = answer_tag.select('span.vote-accepted-on')
+            if accepted_tag:
+                accepted = True
+            else:
+                accepted = False
+            owner_tag = answer_tag.select('div.user-info')[-1]
+            user_tag = owner_tag.select('div.user-details')[0]
+            user_link_tag = user_tag.select('a')
+            user_action_tag = owner_tag.select('div.user-action-time span')[0]
+            if user_link_tag:
+                tmp = user_link_tag[0].get('href').split('/')
+                uid = tmp[2]
+                username = tmp[3]
+            else:
+                uid = -1
+                username = user_tag.contents[0].strip()
+            author = UserObject.create(id=uid, username=username)
+            answeredtime = user_action_tag.get('title')
+            answer = AnswerObject.create(
+                id=int(aid), qid=qid, accepted=accepted,
+                content=content, upvotecount=int(upvotecount),
+                author=author, answeredtime=answeredtime)
+            logger.info('Added an answer by: %s' % answer.author.username)
+
+    def add_comment(self):
         pass
+
 
 if __name__ == '__main__':
 
