@@ -117,6 +117,7 @@ class CommentObject(DataObject):
         self.id = -1
         self.content = None
         self.user = None
+        self.score = 0
         self.commenttime = None
 
 
@@ -149,7 +150,7 @@ class StackExchangeHandler(object):
         else:
             uid = -1
             username = user_tag.contents[0].strip()
-        author = UserObject.create(id=uid, username=username)
+        author = UserObject.create(id=int(uid), username=username)
         info_tag = self.soup.select('#qinfo td p.label-key')
         askedtime = info_tag[1].get('title')
         viewcount = info_tag[3].select('b')[0].string.split(' ')[0]
@@ -161,12 +162,15 @@ class StackExchangeHandler(object):
             favoritecount = 0
         tags = [
             tag.string for tag in post_tag.find_next_sibling().find_all('a')]
+        comments_tag = question_tag.select(
+            'div.comments')[0].select('tr.comment')
+        comments = self.add_comment(comments_tag)
         question = QuestionObject.create(
             id=int(qid), title=title, content=content,
             tags=tags, upvotecount=int(upvotecount),
             favoritecount=int(favoritecount), author=author,
             viewcount=viewcount, askedtime=askedtime,
-            activitytime=activitytime)
+            activitytime=activitytime, comments=comments)
         logger.info('Added a question: %s' % str(question.title))
         return int(qid)
 
@@ -193,16 +197,47 @@ class StackExchangeHandler(object):
             else:
                 uid = -1
                 username = user_tag.contents[0].strip()
-            author = UserObject.create(id=uid, username=username)
+            author = UserObject.create(id=int(uid), username=username)
             answeredtime = user_action_tag.get('title')
+            comments_tag = answer_tag.select(
+                'div.comments')[0].select('tr.comment')
+            comments = self.add_comment(comments_tag)
             answer = AnswerObject.create(
                 id=int(aid), qid=qid, accepted=accepted,
                 content=content, upvotecount=int(upvotecount),
-                author=author, answeredtime=answeredtime)
+                author=author, answeredtime=answeredtime,
+                comments=comments)
             logger.info('Added an answer by: %s' % answer.author.username)
 
-    def add_comment(self):
-        pass
+    def add_comment(self, comments_tag):
+        comments = []
+        for comment_tag in comments_tag:
+            mid = comment_tag.get('id').split('-')[1]
+            comment_body_tag = comment_tag.select('div.comment-body')[0]
+            content = comment_body_tag.select('span.comment-copy')[0].contents
+            user_tag = comment_body_tag.select('a.comment-user')[0]
+            if user_tag:
+                tmp = user_tag.get('href').split('/')
+                uid = tmp[2]
+                username = tmp[3]
+            else:
+                uid = -1
+                username = comment_body_tag.select(
+                    'span.comment-user')[0].string
+            user = UserObject.create(id=int(uid), username=username)
+            score_tag = comment_tag.select('td.comment-score span.cool')
+            if score_tag:
+                score = score_tag[0].string
+            else:
+                score = 0
+            commenttime = comment_body_tag.select(
+                'span.comment-date span')[0].get('title')
+            comment = CommentObject.create(
+                id=int(mid), user=user, score=int(score),
+                content=content, commenttime=commenttime)
+            comments.append(comment)
+            logger.info('Added a comment by: %s' % comment.user.username)
+        return comments
 
 
 if __name__ == '__main__':
