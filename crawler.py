@@ -2,12 +2,12 @@
 #
 # @name:  crawler.py
 # @create: 13 September 2014 (Saturday)
-# @update: 13 September 2014 (Saturday)
+# @update: 14 September 2014 (Saturday)
 # @author: Z. Huang
 import logging
 import threading
 import urllib2
-from urlparse import urlparse
+from urlparse import urlparse, urldefrag
 from bs4 import BeautifulSoup
 
 FORMAT = '[%(levelname)s %(asctime)s] %(threadName)s: %(message)s'
@@ -23,9 +23,10 @@ class Crawler(threading.Thread):
         self.target_link = target_link
         self.depth = depth
         self.handler = handler
-        parsed_url = self.parse_url()
+        parsed_url = urlparse(self.url)
         self.scheme = parsed_url.scheme
         self.netloc = parsed_url.netloc
+        self.visited = set()
 
     def run(self):
         logger.info('Starting...')
@@ -33,11 +34,13 @@ class Crawler(threading.Thread):
         logger.info('Stopping...')
 
     def crawler(self, url, depth):
-        if depth == 0:
+        url = self.unique_url(url)
+        if depth == 0 or url in self.visited:
             return
         try:
             logger.debug('crawling %s' % url)
             f = urllib2.urlopen(url)
+            self.visited.add(url)
             soup = BeautifulSoup(f)
             if self.handler:
                 self.handler(soup, url, depth)
@@ -52,15 +55,15 @@ class Crawler(threading.Thread):
             logger.error(e)
             return
 
-    def parse_url(self):
-        return urlparse(self.url)
-
     def fix_url(self, url):
         if not url:
             return ''
         if '//' not in url:
             url = ''.join([self.scheme, '://', self.netloc, url])
         return url
+
+    def unique_url(self, url):
+        return urldefrag(url)[0]
 
 
 class DataObject(object):
