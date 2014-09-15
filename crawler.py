@@ -139,6 +139,9 @@ class StackExchangeHandler(object):
         if self.depth == 1:
             qid = self.add_question()
             self.add_answer(qid)
+        elif self.depth == 2:
+            qid = int(url.split('/')[4])
+            self.add_answer(qid)
 
     def add_question(self):
         question_tag = self.soup.select('#question')[0]
