@@ -19,7 +19,7 @@ def main():
         'http://matheducators.stackexchange.com/questions?page=1&sort=newest',
     ]
 
-    targets = {0: 'a.question-hyperlink', 1: 'div.pager-answers a'}
+    targets = {0: '#questions a.question-hyperlink', 1: 'div.pager-answers a'}
 
     connect('crawler-testing')
 

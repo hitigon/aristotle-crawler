@@ -61,7 +61,8 @@ class StackExchangeHandler(object):
         self.depth = depth
         if self.depth == 1:
             qid = self.add_question()
-            self.add_answer(qid)
+            if qid != -1:
+                self.add_answer(qid)
         elif self.depth == 2:
             qid = int(url.split('/')[4])
             self.add_answer(qid)
@@ -116,6 +117,9 @@ class StackExchangeHandler(object):
         comments_tag = question_tag.select(
             'div.comments')[0].select('tr.comment')
         comments = self.add_comment(comments_tag)
+        if Question.objects(qid=int(qid)):
+            logger.debug('Question %s is in the record' % qid)
+            return -1
         question = Question(
             qid=int(qid), title=title, content=content,
             tags=tags, upvotecount=int(upvotecount),
@@ -173,6 +177,9 @@ class StackExchangeHandler(object):
                 'div.comments')[0].select('tr.comment')
             comments = self.add_comment(comments_tag)
             question = Question.objects(qid=qid).first()
+            if Answer.objects(aid=int(aid)):
+                logger.debug('Answer %s is in the record' % aid)
+                return
             answer = Answer(
                 aid=int(aid), question=question, accepted=accepted,
                 content=content, upvotecount=int(upvotecount),
