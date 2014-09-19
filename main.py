@@ -29,17 +29,26 @@ def main():
 
     connect('crawler-testing')
 
+    task_threads = []
+
     for url in urls:
         crawler = Crawler(
             url, targets=targets,
             depth=3, handler=StackExchangeTaskHandler)
         crawler.start()
-        crawler.join()
+        task_threads.append(crawler)
 
+    for task in task_threads:
+        task.join()
+
+    task_threads = []
     for i in range(NUM_OF_THREADS):
         crawler = QueueCrawler(task_queue, StackExchangeHandler)
         crawler.start()
-        crawler.join()
+        task_threads.append(crawler)
+
+    for task in task_threads:
+        task.join()
 
 if __name__ == '__main__':
     main()
