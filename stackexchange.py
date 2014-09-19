@@ -2,13 +2,16 @@
 #
 # @name:  stackexchange.py
 # @create: 17 September 2014 (Wednesday)
-# @update: 17 September 2014 (Wednesday)
+# @update: 18 September 2014 (Wednesday)
 # @author: Z. Huang
 import logging
+from Queue import Queue
 from mongoengine import Document, EmbeddedDocument
 from mongoengine.fields import StringField, IntField
 from mongoengine.fields import ReferenceField, ListField
 from mongoengine.fields import BooleanField, EmbeddedDocumentField
+
+task_queue = Queue()
 
 logger = logging.getLogger('Crawler')
 
@@ -220,3 +223,10 @@ class StackExchangeHandler(object):
             comments.append(comment)
             logger.info('Added a comment by: %s' % comment.user.username)
         return comments
+
+
+class StackExchangeTaskHandler(object):
+
+    def __init__(self, soup, url, depth):
+        if depth >= 1:
+            task_queue.put((soup, url, depth))

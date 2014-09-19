@@ -2,7 +2,7 @@
 #
 # @name:  crawler.py
 # @create: 13 September 2014 (Saturday)
-# @update: 17 September 2014 (Saturday)
+# @update: 18 September 2014 (Saturday)
 # @author: Z. Huang
 import logging
 import threading
@@ -43,6 +43,7 @@ class Crawler(threading.Thread):
             f = urllib2.urlopen(url)
             self.visited.add(url)
             soup = BeautifulSoup(f)
+            #
             if self.handler:
                 self.handler(soup, url, depth)
             if self.targets and depth in self.targets:
@@ -69,3 +70,21 @@ class Crawler(threading.Thread):
 
     def unique_url(self, url):
         return urldefrag(url)[0]
+
+
+class QueueCrawler(threading.Thread):
+
+    def __init__(self, queue, handler):
+        threading.Thread.__init__(self)
+        self.queue = queue
+        self.handler = handler
+
+    def run(self):
+        while True:
+            if self.queue.empty():
+                break
+            logger.info('Starting...')
+            soup, url, depth = self.queue.get()
+            self.handler(soup, url, depth)
+            self.queue.task_done()
+            logger.info('Stopping...')
