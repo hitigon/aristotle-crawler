@@ -18,16 +18,18 @@ FORMAT = '[%(levelname)s %(asctime)s] %(threadName)s: %(message)s'
 logging.basicConfig(level=logging.NOTSET, format=FORMAT)
 logger = logging.getLogger('Crawler')
 
+MATH_URL = 'http://matheducators.stackexchange.com/questions?page={0}&sort=newest'
+PAGE_START = 1
+PAGE_END = 10
+
 
 def main():
-    urls = [
-        'http://matheducators.stackexchange.com/questions?page=1&sort=newest',
-        'http://matheducators.stackexchange.com/questions?page=2&sort=newest',
-    ]
-
+    connect('crawler-testing')
+    urls = []
     targets = {0: '#questions a.question-hyperlink', 1: 'div.pager-answers a'}
 
-    connect('crawler-testing')
+    for i in range(PAGE_START, PAGE_END + 1):
+        urls.append(MATH_URL.format(i))
 
     task_threads = []
 

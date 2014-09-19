@@ -62,13 +62,18 @@ class StackExchangeHandler(object):
         self.soup = soup
         self.url = url
         self.depth = depth
-        if self.depth == 1:
-            qid = self.add_question()
-            if qid != -1:
+        try:
+            if self.depth == 1:
+                qid = self.add_question()
+                if qid != -1:
+                    self.add_answer(qid)
+            elif self.depth == 2:
+                qid = int(url.split('/')[4])
                 self.add_answer(qid)
-        elif self.depth == 2:
-            qid = int(url.split('/')[4])
-            self.add_answer(qid)
+        except Exception as e:
+            import sys
+            exc_type, exc_obj, exc_tb = sys.exc_info()
+            logger.error('%s at %r' % (str(e), exc_tb.tb_lineno))
 
     def add_question(self):
         question_tag = self.soup.select('#question')[0]
