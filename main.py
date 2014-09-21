@@ -2,31 +2,55 @@
 #
 # @name:  main.py
 # @create: 17 September 2014 (Wednesday)
-# @update: 20 September 2014 (Wednesday)
+# @update: 21 September 2014 (Wednesday)
 # @author: Z. Huang
+import argparse
 import logging
 from Queue import Queue
 from mongoengine import connect
 from crawler import Crawler
 from stackexchange import StackExchangeHandler
 
-NUM_OF_THREADS = 4
+
 FORMAT = '[%(levelname)s %(asctime)s] %(threadName)s: %(message)s'
 logging.basicConfig(level=logging.NOTSET, format=FORMAT)
 logger = logging.getLogger('Crawler')
 
-MATH_URL = 'http://matheducators.stackexchange.com/questions?page={0}&sort=newest'
-PAGE_START = 1
-PAGE_END = 1
+args_parser = argparse.ArgumentParser(description='Aristotle Crawler')
+args_parser.add_argument('-t', '--thread', action='store',
+                         type=int, default=4,
+                         help='number of threads')
+args_parser.add_argument('--start', action='store',
+                         type=int, default=1,
+                         help='number of starting page')
+args_parser.add_argument('--end', action='store',
+                         type=int, default=5,
+                         help='number of ending page')
+args_parser.add_argument('-m', '--mongo', action='store',
+                         default='crawler-testing',
+                         help='mongodb name')
+args_parser.add_argument('-u', '--url', action='store',
+                         help='targeted url template')
 
 
 def main():
-    connect('crawler-testing')
+    args = args_parser.parse_args()
+    if not args.url:
+        print('please use --help for command line help')
+        return
+
+    try:
+        connect(args.mongo)
+    except Exception as e:
+        import sys
+        logging.debug(str(e))
+        sys.exit()
+
     urls = []
     targets = {0: '#questions a.question-hyperlink', 1: 'div.pager-answers a'}
 
-    for i in range(PAGE_START, PAGE_END + 1):
-        urls.append(MATH_URL.format(i))
+    for i in range(args.start, args.end + 1):
+        urls.append(args.url.format(i))
 
     task_threads = []
     queue = Queue()
@@ -34,7 +58,7 @@ def main():
     for url in urls:
         queue.put(url)
 
-    for i in range(NUM_OF_THREADS):
+    for i in range(args.thread):
         crawler = Crawler(queue, output, targets=targets, depth=3)
         crawler.start()
         task_threads.append(crawler)
@@ -43,7 +67,7 @@ def main():
         task.join()
 
     task_threads = []
-    for i in range(NUM_OF_THREADS):
+    for i in range(args.thread):
         crawler = Crawler(output, handler=StackExchangeHandler)
         crawler.start()
         task_threads.append(crawler)
