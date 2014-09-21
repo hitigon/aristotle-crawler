@@ -2,7 +2,7 @@
 #
 # @name:  crawler.py
 # @create: 13 September 2014 (Saturday)
-# @update: 18 September 2014 (Saturday)
+# @update: 20 September 2014 (Saturday)
 # @author: Z. Huang
 import logging
 import threading
@@ -15,26 +15,36 @@ logger = logging.getLogger('Crawler')
 
 class Crawler(threading.Thread):
 
-    def __init__(self, url, target=None, targets=None, depth=1, handler=None):
+    def __init__(self, queue, output=None, target=None, targets=None, depth=1, handler=None):
         threading.Thread.__init__(self)
-        self.url = url
+        self.queue = queue
         self.target = target
         self.targets = targets
         self.depth = depth
         self.handler = handler
-        parsed_url = urlparse(self.url)
-        self.scheme = parsed_url.scheme
-        self.netloc = parsed_url.netloc
+        self.output = output
         self.visited = set()
 
     def run(self):
-        logger.info('Starting...')
-        self.crawler(self.url, 0)
-        logger.info('Stopping...')
+        while True:
+            if self.queue.empty():
+                break
+            logger.info('Starting...')
+            if self.handler:
+                soup, url, depth = self.queue.get()
+                self.handler(soup, url, depth)
+            else:
+                url = self.queue.get()
+                self.crawler(url, 0)
+            self.queue.task_done()
+            logger.info('Stopping...')
 
     def crawler(self, url, depth):
         if depth == self.depth:
             return
+        parsed_url = urlparse(url)
+        scheme = parsed_url.scheme
+        netloc = parsed_url.netloc
         url = self.unique_url(url)
         if url in self.visited:
             return
@@ -43,9 +53,8 @@ class Crawler(threading.Thread):
             f = urllib2.urlopen(url)
             self.visited.add(url)
             soup = BeautifulSoup(f)
-            #
-            if self.handler:
-                self.handler(soup, url, depth)
+            if self.output and self.depth >= 1:
+                self.output.put((soup, url, depth))
             if self.targets and depth in self.targets:
                 urls = soup.select(self.targets[depth])
             elif self.target:
@@ -53,7 +62,7 @@ class Crawler(threading.Thread):
             else:
                 urls = soup.find_all('a')
             for u in urls:
-                u = self.fix_url(u.get('href'))
+                u = self.fix_url(u.get('href'), scheme, netloc)
                 self.crawler(u, depth + 1)
         except Exception as e:
             import sys
@@ -61,30 +70,12 @@ class Crawler(threading.Thread):
             logger.error('%s at %r' % (str(e), exc_tb.tb_lineno))
             return
 
-    def fix_url(self, url):
+    def fix_url(self, url, scheme, netloc):
         if not url:
             return ''
         if '//' not in url:
-            url = ''.join([self.scheme, '://', self.netloc, url])
+            url = ''.join([scheme, '://', netloc, url])
         return url
 
     def unique_url(self, url):
         return urldefrag(url)[0]
-
-
-class QueueCrawler(threading.Thread):
-
-    def __init__(self, queue, handler):
-        threading.Thread.__init__(self)
-        self.queue = queue
-        self.handler = handler
-
-    def run(self):
-        while True:
-            if self.queue.empty():
-                break
-            logger.info('Starting...')
-            soup, url, depth = self.queue.get()
-            self.handler(soup, url, depth)
-            self.queue.task_done()
-            logger.info('Stopping...')
