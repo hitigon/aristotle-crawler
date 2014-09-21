@@ -24,13 +24,17 @@ args_parser.add_argument('--start', action='store',
                          type=int, default=1,
                          help='number of starting page')
 args_parser.add_argument('--end', action='store',
-                         type=int, default=5,
+                         type=int, default=10,
                          help='number of ending page')
 args_parser.add_argument('-m', '--mongo', action='store',
                          default='crawler-testing',
                          help='mongodb name')
 args_parser.add_argument('-u', '--url', action='store',
                          help='targeted url template')
+args_parser.add_argument('-a', '--apply', action='store',
+                         default='stackexchange',
+                         choices=['stackexchange', ],
+                         help='Apply a crawling task')
 
 
 def main():
@@ -46,9 +50,19 @@ def main():
         logging.debug(str(e))
         sys.exit()
 
-    urls = []
-    targets = {0: '#questions a.question-hyperlink', 1: 'div.pager-answers a'}
+    if args.apply == 'stackexchange':
+        depth = 3
+        targets = {
+            0: '#questions a.question-hyperlink',
+            1: 'div.pager-answers a'
+        }
+    else:
+        depth = 1
+        targets = {
+            0: 'a'
+        }
 
+    urls = []
     for i in range(args.start, args.end + 1):
         urls.append(args.url.format(i))
 
@@ -59,7 +73,7 @@ def main():
         queue.put(url)
 
     for i in range(args.thread):
-        crawler = Crawler(queue, output, targets=targets, depth=3)
+        crawler = Crawler(queue, output, targets=targets, depth=depth)
         crawler.start()
         task_threads.append(crawler)
 
