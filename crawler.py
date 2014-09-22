@@ -2,7 +2,7 @@
 #
 # @name:  crawler.py
 # @create: 13 September 2014 (Saturday)
-# @update: 20 September 2014 (Saturday)
+# @update: 22 September 2014 (Saturday)
 # @author: Z. Huang
 import logging
 import threading
@@ -75,7 +75,13 @@ class Crawler(threading.Thread):
             return ''
         if '//' not in url:
             url = ''.join([scheme, '://', netloc, url])
+        elif ':' not in url:
+            url = ''.join([scheme, ':', url])
         return url
 
     def unique_url(self, url):
         return urldefrag(url)[0]
+
+
+def dummy_handler(soup, url, depth):
+    logger.info('Handling {0} at {1}'.format(url, depth))
